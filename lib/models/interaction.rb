@@ -1,64 +1,33 @@
-require_relative '../../config/database'
+require_relative 'base_model'
 require_relative 'contact'
 
-class Interaction
-  attr_accessor :id, :contact_id, :message, :response, :context_summary, :created_at
+class Interaction < BaseModel
+  attr_accessor :contact_id, :message, :response, :context_summary
 
   def initialize(attributes = {})
-    @id = attributes[:id]
+    super(attributes)
     @contact_id = attributes[:contact_id]
     @message = attributes[:message]
     @response = attributes[:response]
     @context_summary = attributes[:context_summary]
-    @created_at = attributes[:created_at]
   end
 
-  def save
-    db = Database.connection
-    
-    if @id
-      db.execute(
-        "UPDATE interactions SET contact_id = ?, message = ?, response = ?, context_summary = ? WHERE id = ?",
-        [@contact_id, @message, @response, @context_summary, @id]
-      )
-      @id
-    else
-      db.execute(
-        "INSERT INTO interactions (contact_id, message, response, context_summary) VALUES (?, ?, ?, ?)",
-        [@contact_id, @message, @response, @context_summary]
-      )
-      @id = db.last_insert_row_id
-    end
-  end
-
-  def self.find(id)
-    db = Database.connection
-    result = db.execute("SELECT * FROM interactions WHERE id = ?", [id]).first
-    return nil unless result
-    
-    new_from_hash(result)
+  def self.table_name
+    'interactions'
   end
 
   def self.find_by_contact(contact_id, limit: 10)
     db = Database.connection
     results = db.execute(
-      "SELECT * FROM interactions WHERE contact_id = ? ORDER BY created_at DESC LIMIT ?",
+      "SELECT * FROM #{table_name} WHERE contact_id = ? ORDER BY created_at DESC LIMIT ?",
       [contact_id, limit]
     )
-    results.map { |row| new_from_hash(row) }
-  end
-
-  def self.all
-    db = Database.connection
-    results = db.execute("SELECT * FROM interactions ORDER BY created_at DESC")
     results.map { |row| new_from_hash(row) }
   end
 
   def contact
     @contact ||= Contact.find(@contact_id) if @contact_id
   end
-
-  private
 
   def self.new_from_hash(hash)
     new(
@@ -69,6 +38,24 @@ class Interaction
       context_summary: hash['context_summary'],
       created_at: hash['created_at'] ? Time.parse(hash['created_at']) : nil
     )
+  end
+
+  protected
+
+  def insert_columns
+    [:contact_id, :message, :response, :context_summary]
+  end
+
+  def insert_values
+    [@contact_id, @message, @response, @context_summary]
+  end
+
+  def update_columns
+    [:contact_id, :message, :response, :context_summary]
+  end
+
+  def update_values
+    [@contact_id, @message, @response, @context_summary]
   end
 end
 

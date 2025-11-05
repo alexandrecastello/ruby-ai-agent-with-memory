@@ -13,7 +13,8 @@ class TestRunner
       { name: 'EmbeddingService', class_name: 'EmbeddingServiceTest', file: 'embedding_service_test' },
       { name: 'VectorStore', class_name: 'VectorStoreTest', file: 'vector_store_test' },
       { name: 'Models', class_name: 'ModelsTest', file: 'models_test' },
-      { name: 'Memory', class_name: 'MemoryTest', file: 'memory_test' }
+      { name: 'Memory', class_name: 'MemoryTest', file: 'memory_test' },
+      { name: 'Agent', class_name: 'AgentTest', file: 'agent_test' }
     ]
     
     results = []

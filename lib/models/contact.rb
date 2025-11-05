@@ -1,55 +1,24 @@
-require_relative '../../config/database'
+require_relative 'base_model'
 
-class Contact
-  attr_accessor :id, :name, :email, :company, :status, :last_contact_at, :created_at
+class Contact < BaseModel
+  attr_accessor :name, :email, :company, :status, :last_contact_at
 
   def initialize(attributes = {})
-    @id = attributes[:id]
+    super(attributes)
     @name = attributes[:name]
     @email = attributes[:email]
     @company = attributes[:company]
     @status = attributes[:status] || 'new'
     @last_contact_at = attributes[:last_contact_at]
-    @created_at = attributes[:created_at]
   end
 
-  def save
-    db = Database.connection
-    
-    last_contact_str = @last_contact_at.is_a?(Time) ? @last_contact_at.to_s : @last_contact_at
-    
-    if @id
-      db.execute(
-        "UPDATE contacts SET name = ?, email = ?, company = ?, status = ?, last_contact_at = ? WHERE id = ?",
-        [@name, @email, @company, @status, last_contact_str, @id]
-      )
-      @id
-    else
-      db.execute(
-        "INSERT INTO contacts (name, email, company, status, last_contact_at) VALUES (?, ?, ?, ?, ?)",
-        [@name, @email, @company, @status, last_contact_str]
-      )
-      @id = db.last_insert_row_id
-    end
-  end
-
-  def self.find(id)
-    db = Database.connection
-    result = db.execute("SELECT * FROM contacts WHERE id = ?", [id]).first
-    return nil unless result
-    
-    new_from_hash(result)
-  end
-
-  def self.all
-    db = Database.connection
-    results = db.execute("SELECT * FROM contacts ORDER BY created_at DESC")
-    results.map { |row| new_from_hash(row) }
+  def self.table_name
+    'contacts'
   end
 
   def self.find_by_email(email)
     db = Database.connection
-    result = db.execute("SELECT * FROM contacts WHERE email = ?", [email]).first
+    result = db.execute("SELECT * FROM #{table_name} WHERE email = ?", [email]).first
     return nil unless result
     
     new_from_hash(result)
@@ -59,8 +28,6 @@ class Contact
     @last_contact_at = Time.now
     save
   end
-
-  private
 
   def self.new_from_hash(hash)
     new(
@@ -72,6 +39,36 @@ class Contact
       last_contact_at: hash['last_contact_at'] ? Time.parse(hash['last_contact_at']) : nil,
       created_at: hash['created_at'] ? Time.parse(hash['created_at']) : nil
     )
+  end
+
+  protected
+
+  def insert_columns
+    [:name, :email, :company, :status, :last_contact_at]
+  end
+
+  def insert_values
+    [
+      @name,
+      @email,
+      @company,
+      @status,
+      format_value(@last_contact_at)
+    ]
+  end
+
+  def update_columns
+    [:name, :email, :company, :status, :last_contact_at]
+  end
+
+  def update_values
+    [
+      @name,
+      @email,
+      @company,
+      @status,
+      format_value(@last_contact_at)
+    ]
   end
 end
 
