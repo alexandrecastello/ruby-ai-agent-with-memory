@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  agent:
+    build: .
+    container_name: ruby-ai-agent
+    volumes:
+      - ./db:/app/db
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_GEMINI_KEY=${GOOGLE_GEMINI_KEY}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-openai}
+      - DATABASE_PATH=${DATABASE_PATH:-db/agent.db}
+    stdin_open: true
+    tty: true
+    command: ruby bin/agent
+

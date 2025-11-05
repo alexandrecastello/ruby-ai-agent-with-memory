@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+
+require 'dotenv/load'
+require 'colorize'
+
+puts "🤖 Agente CRM com Memória e Embeddings".colorize(:cyan)
+puts "Versão: 1.0.0".colorize(:green)
+puts ""
+puts "Verificando configuração...".colorize(:yellow)
+
+if ENV['OPENAI_API_KEY']
+  puts "✓ OpenAI API Key configurada".colorize(:green)
+else
+  puts "✗ OpenAI API Key não encontrada".colorize(:red)
+end
+
+if ENV['GOOGLE_GEMINI_KEY']
+  puts "✓ Google Gemini Key configurada".colorize(:green)
+else
+  puts "✗ Google Gemini Key não encontrada".colorize(:red)
+end
+
+provider = ENV['EMBEDDING_PROVIDER'] || 'openai'
+puts "✓ Provedor de embeddings: #{provider}".colorize(:green)
+
+puts ""
+puts "🚀 Sistema pronto! (Implementação em progresso)".colorize(:cyan)
+puts ""
+
