@@ -5,6 +5,7 @@ require_relative 'knowledge/embedding_service'
 require_relative 'models/contact'
 require_relative 'models/interaction'
 require 'ruby/openai'
+require 'colorize'
 
 class Agent
   def initialize(embedding_provider: nil)
@@ -60,16 +61,26 @@ class Agent
     @long_memory.save_interaction(interaction)
     @short_memory.add_interaction(message, response, { contact_id: contact_id })
     
+    total_interactions = @long_memory.count_contact_interactions(contact_id)
+    
     if @short_memory.size >= 10
       summary = summarize_context
       @long_memory.save_context_summary(contact_id, summary)
       @short_memory.clear
     end
     
+    if total_interactions > 20
+      archived_count = archive_old_interactions(contact_id)
+      if archived_count > 0
+        puts "\n📦 Archived #{archived_count} old interactions (keeping last 10)".colorize(:yellow) if defined?(Colorize)
+      end
+    end
+    
     {
       response: response,
       context_used: context[:sources].length,
-      knowledge_used: context[:knowledge_found]
+      knowledge_used: context[:knowledge_found],
+      total_interactions: total_interactions
     }
   end
 
@@ -174,6 +185,100 @@ class Agent
       summary
     else
       "No recent interactions to summarize."
+    end
+  end
+
+  def archive_old_interactions(contact_id)
+    total_count = @long_memory.count_contact_interactions(contact_id)
+    
+    return 0 if total_count <= 20
+    
+    interactions_to_keep = 10
+    interactions_to_archive = total_count - interactions_to_keep
+    
+    if interactions_to_archive > 0
+      # Buscar todas as interações antigas para sumarizar
+      old_interactions = @long_memory.get_old_interactions(contact_id, limit: interactions_to_archive)
+      
+      if old_interactions.length > 0
+        # Criar um resumo completo de todas as interações usando OpenAI
+        summary_text = summarize_interactions(old_interactions)
+        
+        # Arquivar as interações antigas (primeiro salva o resumo, depois deleta)
+        begin
+          archived = @long_memory.archive_old_interactions(contact_id, summary_text)
+          
+          if archived > 0
+            puts "\n📦 Arquivadas #{archived} interações antigas (mantendo últimas #{interactions_to_keep})".colorize(:yellow) if defined?(Colorize)
+            puts "   Resumo criado e salvo com sucesso antes de deletar as interações".colorize(:green) if defined?(Colorize)
+          end
+          
+          archived
+        rescue => e
+          puts "\n❌ Erro ao arquivar interações: #{e.message}".colorize(:red) if defined?(Colorize)
+          puts "   As interações não foram deletadas para preservar os dados.".colorize(:yellow) if defined?(Colorize)
+          0
+        end
+      else
+        0
+      end
+    else
+      0
+    end
+  end
+
+  def summarize_interactions(interactions)
+    return "Nenhuma interação para sumarizar." if interactions.empty?
+    
+    # Preparar o texto com todas as interações
+    interactions_text = interactions.map.with_index do |interaction, index|
+      "#{index + 1}. Usuário: #{interaction.message}\n   Agente: #{interaction.response}"
+    end.join("\n\n")
+    
+    # Se não houver cliente OpenAI, criar um resumo simples
+    unless @openai_client
+      return "Resumo de #{interactions.length} interações: #{interactions.map { |i| i.message[0..50] }.join('; ')}"
+    end
+    
+    # Usar OpenAI para criar um resumo inteligente
+    begin
+      prompt = <<~PROMPT
+        Você precisa criar um resumo completo e conciso de todas as interações abaixo.
+        O resumo deve capturar os pontos principais, temas discutidos, decisões tomadas e contexto importante.
+        Seja claro e objetivo, mantendo as informações mais relevantes.
+        
+        Interações:
+        #{interactions_text}
+        
+        Resumo:
+      PROMPT
+      
+      response = @openai_client.chat(
+        parameters: {
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Você é um assistente especializado em criar resumos concisos e informativos de conversas.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 500
+        }
+      )
+      
+      summary = response.dig('choices', 0, 'message', 'content') || "Resumo de #{interactions.length} interações arquivadas."
+      
+      # Adicionar metadados ao resumo
+      "📋 Resumo de #{interactions.length} interações arquivadas:\n#{summary}"
+      
+    rescue => e
+      # Em caso de erro, criar um resumo simples
+      "📋 Resumo de #{interactions.length} interações arquivadas: #{interactions.map { |i| i.message[0..50] }.join('; ')}"
     end
   end
 end

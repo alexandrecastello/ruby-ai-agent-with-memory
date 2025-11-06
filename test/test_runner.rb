@@ -14,7 +14,8 @@ class TestRunner
       { name: 'VectorStore', class_name: 'VectorStoreTest', file: 'vector_store_test' },
       { name: 'Models', class_name: 'ModelsTest', file: 'models_test' },
       { name: 'Memory', class_name: 'MemoryTest', file: 'memory_test' },
-      { name: 'Agent', class_name: 'AgentTest', file: 'agent_test' }
+      { name: 'Agent', class_name: 'AgentTest', file: 'agent_test' },
+      { name: 'Integration', class_name: 'IntegrationTest', file: 'integration_test' }
     ]
     
     results = []
